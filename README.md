@@ -40,6 +40,3 @@ Eliminated a fully manual report-splitting and distribution process,
 saving significant time each reporting cycle and removing human error 
 from manager-wise report delivery.
 
----
-📝 Note: Code has been generalized for demonstration — actual company data, 
-employee names, and email addresses are not included.
