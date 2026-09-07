@@ -2,7 +2,7 @@
 
 A collection of VBA and Google Apps Script tools built to automate 
 manager-wise sales report generation and email distribution for a field 
-sales team of 300+ users.
+sales team of 500+ users.
 
 ## 📌 Overview
 This project automates two key processes:
