@@ -1,0 +1,196 @@
+RSM Wise Code
+
+Sub Split_RSM_Wise_Files()
+    Dim ws As Worksheet
+    Dim lastRow As Long, lastCol As Long
+    Dim rsmCol As Long
+    Dim rng As Range, cell As Range
+    Dim dict As Object
+    Dim rsmName As Variant
+    Dim newWB As Workbook
+    Dim newWS As Worksheet
+    Dim savePath As String
+    Dim filterRange As Range
+    Dim copyRange As Range
+    Dim safeFileName As String
+    Dim v As String
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    savePath = ThisWorkbook.Path & "\RSM Files"
+    If Dir(savePath, vbDirectory) = "" Then MkDir savePath
+
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    ' RSM column is Column B (2) across relevant sheets
+    rsmCol = 2
+
+    '========================
+    ' GET UNIQUE RSM NAMES
+    '========================
+    For Each ws In ThisWorkbook.Worksheets
+        lastRow = ws.Cells(ws.Rows.Count, rsmCol).End(xlUp).Row
+        Set rng = ws.Range(ws.Cells(3, rsmCol), ws.Cells(lastRow, rsmCol))
+        For Each cell In rng
+            If Not IsError(cell.Value) Then
+                v = Trim(CStr(cell.Value))
+                If v <> "" Then
+                    If Not dict.exists(v) Then
+                        dict.Add v, Nothing
+                    End If
+                End If
+            End If
+        Next cell
+    Next ws
+
+    '========================
+    ' CREATE FILES
+    '========================
+    For Each rsmName In dict.Keys
+        Set newWB = Workbooks.Add(xlWBATWorksheet)
+        For Each ws In ThisWorkbook.Worksheets
+            lastRow = ws.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+            lastCol = ws.Cells.Find("*", SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
+
+            Set filterRange = ws.Range(ws.Cells(2, 1), ws.Cells(lastRow, lastCol))
+            Set copyRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+
+            If ws.AutoFilterMode Then ws.AutoFilterMode = False
+            filterRange.AutoFilter Field:=rsmCol, Criteria1:=CStr(rsmName)
+
+            Set newWS = newWB.Sheets.Add(After:=newWB.Sheets(newWB.Sheets.Count))
+            On Error Resume Next
+            newWS.Name = Left(ws.Name, 31)
+            On Error GoTo 0
+
+            copyRange.SpecialCells(xlCellTypeVisible).Copy
+            newWS.Range("A1").PasteSpecial xlPasteAll
+
+            ws.AutoFilterMode = False
+        Next ws
+
+        Application.DisplayAlerts = False
+        newWB.Sheets(1).Delete
+        Application.DisplayAlerts = True
+
+        safeFileName = Trim(CStr(rsmName))
+        safeFileName = Replace(safeFileName, "/", "-")
+        safeFileName = Replace(safeFileName, "\", "-")
+        safeFileName = Replace(safeFileName, ":", "-")
+        safeFileName = Replace(safeFileName, "*", "-")
+        safeFileName = Replace(safeFileName, "?", "-")
+        safeFileName = Replace(safeFileName, """", "-")
+        safeFileName = Replace(safeFileName, "<", "-")
+        safeFileName = Replace(safeFileName, ">", "-")
+        safeFileName = Replace(safeFileName, "|", "-")
+
+        If safeFileName <> "" Then
+            newWB.SaveAs savePath & "\" & safeFileName & ".xlsx"
+        End If
+        newWB.Close False
+    Next rsmName
+
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    MsgBox "RSM Wise Files Created Successfully!"
+End Sub
+
+
+ASM Wise Code
+
+Sub Split_ASM_Wise_Files()
+    Dim ws As Worksheet
+    Dim lastRow As Long, lastCol As Long
+    Dim asmCol As Long
+    Dim rng As Range, cell As Range
+    Dim dict As Object
+    Dim asmName As Variant
+    Dim newWB As Workbook
+    Dim newWS As Worksheet
+    Dim savePath As String
+    Dim filterRange As Range
+    Dim copyRange As Range
+    Dim safeFileName As String
+    Dim v As String
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    savePath = ThisWorkbook.Path & "\ASM Files"
+    If Dir(savePath, vbDirectory) = "" Then MkDir savePath
+
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    ' ASM column is Column C (3) across relevant sheets
+    asmCol = 3
+
+    '========================
+    ' GET UNIQUE ASM NAMES
+    '========================
+    For Each ws In ThisWorkbook.Worksheets
+        lastRow = ws.Cells(ws.Rows.Count, asmCol).End(xlUp).Row
+        Set rng = ws.Range(ws.Cells(3, asmCol), ws.Cells(lastRow, asmCol))
+        For Each cell In rng
+            If Not IsError(cell.Value) Then
+                v = Trim(CStr(cell.Value))
+                If v <> "" Then
+                    If Not dict.exists(v) Then
+                        dict.Add v, Nothing
+                    End If
+                End If
+            End If
+        Next cell
+    Next ws
+
+    '========================
+    ' CREATE FILES
+    '========================
+    For Each asmName In dict.Keys
+        Set newWB = Workbooks.Add(xlWBATWorksheet)
+        For Each ws In ThisWorkbook.Worksheets
+            lastRow = ws.Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+            lastCol = ws.Cells.Find("*", SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
+
+            Set filterRange = ws.Range(ws.Cells(2, 1), ws.Cells(lastRow, lastCol))
+            Set copyRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+
+            If ws.AutoFilterMode Then ws.AutoFilterMode = False
+            filterRange.AutoFilter Field:=asmCol, Criteria1:=CStr(asmName)
+
+            Set newWS = newWB.Sheets.Add(After:=newWB.Sheets(newWB.Sheets.Count))
+            On Error Resume Next
+            newWS.Name = Left(ws.Name, 31)
+            On Error GoTo 0
+
+            copyRange.SpecialCells(xlCellTypeVisible).Copy
+            newWS.Range("A1").PasteSpecial xlPasteAll
+
+            ws.AutoFilterMode = False
+        Next ws
+
+        Application.DisplayAlerts = False
+        newWB.Sheets(1).Delete
+        Application.DisplayAlerts = True
+
+        safeFileName = Trim(CStr(asmName))
+        safeFileName = Replace(safeFileName, "/", "-")
+        safeFileName = Replace(safeFileName, "\", "-")
+        safeFileName = Replace(safeFileName, ":", "-")
+        safeFileName = Replace(safeFileName, "*", "-")
+        safeFileName = Replace(safeFileName, "?", "-")
+        safeFileName = Replace(safeFileName, """", "-")
+        safeFileName = Replace(safeFileName, "<", "-")
+        safeFileName = Replace(safeFileName, ">", "-")
+        safeFileName = Replace(safeFileName, "|", "-")
+
+        If safeFileName <> "" Then
+            newWB.SaveAs savePath & "\" & safeFileName & ".xlsx"
+        End If
+        newWB.Close False
+    Next asmName
+
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    MsgBox "ASM Wise Files Created Successfully!"
+End Sub

@@ -1,0 +1,505 @@
+function sendReports() {
+
+  // =========================================================
+  // 1. OPEN MAIN AUTOMATION SHEET
+  // =========================================================
+
+  const mainSS = SpreadsheetApp.getActiveSpreadsheet();
+
+  const configSheet = mainSS.getSheetByName("Config");
+  const controlSheet = mainSS.getSheetByName("Mail Control");
+
+  if (!configSheet) {
+    throw new Error("Config sheet was not found.");
+  }
+
+  if (!controlSheet) {
+    throw new Error("Mail Control sheet was not found.");
+  }
+
+
+  // =========================================================
+  // 2. READ CONFIGURATION
+  // =========================================================
+
+  const employeeMasterURL = configSheet.getRange("B2").getValue();
+  const driveFolderName = configSheet.getRange("B3").getValue();
+
+  if (!employeeMasterURL) {
+    throw new Error("Employee Master URL is missing in Config!B2.");
+  }
+
+  if (!driveFolderName) {
+    throw new Error("Drive Folder Name is missing in Config!B3.");
+  }
+
+
+  // =========================================================
+  // 3. OPEN EMPLOYEE MASTER
+  // =========================================================
+
+  const employeeSS = SpreadsheetApp.openByUrl(employeeMasterURL);
+  const employeeSheet = employeeSS.getSheetByName("Employee Master");
+
+  if (!employeeSheet) {
+    throw new Error("Employee Master sheet was not found.");
+  }
+
+  const employeeData = employeeSheet.getDataRange().getValues();
+
+  if (employeeData.length < 2) {
+    throw new Error("Employee Master does not contain employee data.");
+  }
+
+  const employeeHeaders = employeeData[0];
+
+
+  // =========================================================
+  // 4. FIND REQUIRED EMPLOYEE MASTER COLUMNS
+  // =========================================================
+
+  const userCol = employeeHeaders.indexOf("User");
+  const statusCol = employeeHeaders.indexOf("User Status");
+  const designationCol = employeeHeaders.indexOf("User Designation");
+  const emailCol = employeeHeaders.indexOf("Email");
+  const zsmCol = employeeHeaders.indexOf("ZSMs");
+
+  if (userCol === -1) {
+    throw new Error("Column 'User' was not found.");
+  }
+
+  if (statusCol === -1) {
+    throw new Error("Column 'User Status' was not found.");
+  }
+
+  if (designationCol === -1) {
+    throw new Error("Column 'User Designation' was not found.");
+  }
+
+  if (emailCol === -1) {
+    throw new Error("Column 'Email' was not found.");
+  }
+
+  if (zsmCol === -1) {
+    throw new Error("Column 'ZSMs' was not found.");
+  }
+
+
+  // =========================================================
+  // 5. READ MAIL CONTROL
+  // =========================================================
+
+  const controlData = controlSheet.getDataRange().getValues();
+
+  if (controlData.length < 2) {
+    throw new Error("Mail Control does not contain report settings.");
+  }
+
+  const controlHeaders = controlData[0];
+
+  const reportTypeCol = controlHeaders.indexOf("Report Type");
+  const reportNameCol = controlHeaders.indexOf("Report Name");
+  const subjectCol = controlHeaders.indexOf("Subject");
+  const bodyCol = controlHeaders.indexOf("Email Body");
+  const mailStatusCol = controlHeaders.indexOf("Status");
+
+  if (reportTypeCol === -1) {
+    throw new Error("Column 'Report Type' was not found in Mail Control.");
+  }
+
+  if (reportNameCol === -1) {
+    throw new Error("Column 'Report Name' was not found in Mail Control.");
+  }
+
+  if (subjectCol === -1) {
+    throw new Error("Column 'Subject' was not found in Mail Control.");
+  }
+
+  if (bodyCol === -1) {
+    throw new Error("Column 'Email Body' was not found in Mail Control.");
+  }
+
+  if (mailStatusCol === -1) {
+    throw new Error("Column 'Status' was not found in Mail Control.");
+  }
+
+
+  // =========================================================
+  // 6. FIND FA REPORT DRIVE FOLDER
+  // =========================================================
+
+  const folders = DriveApp.getFoldersByName(driveFolderName);
+
+  if (!folders.hasNext()) {
+    throw new Error(
+      "Drive folder '" + driveFolderName + "' was not found."
+    );
+  }
+
+  const folder = folders.next();
+
+
+  // =========================================================
+  // 7. READ FILES FROM FA REPORT DRIVE FOLDER
+  // =========================================================
+
+  let mailsSent = 0;
+  let filesFound = 0;
+
+
+  // =========================================================
+  // 8. PROCESS EACH PENDING REPORT TYPE
+  // =========================================================
+
+  for (let c = 1; c < controlData.length; c++) {
+
+    const reportType = String(
+      controlData[c][reportTypeCol]
+    ).trim();
+
+    const reportName = String(
+      controlData[c][reportNameCol]
+    ).trim();
+
+    const subject = String(
+      controlData[c][subjectCol]
+    ).trim();
+
+    const emailBody = String(
+      controlData[c][bodyCol]
+    ).trim();
+
+    const status = String(
+      controlData[c][mailStatusCol]
+    ).trim();
+
+
+    // Only process Pending reports
+    if (status.toUpperCase() !== "PENDING") {
+      continue;
+    }
+
+
+    // =======================================================
+    // 9. GET FILES FOR EACH REPORT
+    // =======================================================
+
+    const reportFiles = folder.getFiles();
+
+    let reportMailCount = 0;
+
+    while (reportFiles.hasNext()) {
+
+      const file = reportFiles.next();
+
+      const fileName = file.getName();
+
+
+      // -----------------------------------------------------
+      // Ignore Employee Master files
+      // -----------------------------------------------------
+
+      if (
+        fileName.toLowerCase() === "employee master.xlsx" ||
+        fileName.toLowerCase() === "employee master.xls"
+      ) {
+        continue;
+      }
+
+
+      // -----------------------------------------------------
+      // Remove file extension
+      // -----------------------------------------------------
+
+      const managerName = fileName
+        .replace(/\.[^/.]+$/, "")
+        .trim();
+
+
+      // =====================================================
+      // 10. FIND RECIPIENT IN EMPLOYEE MASTER
+      // =====================================================
+
+      let recipientEmail = "";
+      let bossName = "";
+      let bossEmail = "";
+
+
+      for (let i = 1; i < employeeData.length; i++) {
+
+        const employeeName = String(
+          employeeData[i][userCol]
+        ).trim();
+
+        const employeeStatus = String(
+          employeeData[i][statusCol]
+        ).trim();
+
+        const employeeDesignation = String(
+          employeeData[i][designationCol]
+        ).trim();
+
+        const employeeEmail = String(
+          employeeData[i][emailCol]
+        ).trim();
+
+        const employeeBoss = String(
+          employeeData[i][zsmCol]
+        ).trim();
+
+
+        // ---------------------------------------------------
+        // Match file name with Employee Master User
+        // ---------------------------------------------------
+
+        if (
+          employeeName.toUpperCase() === managerName.toUpperCase() &&
+          employeeStatus.toUpperCase() === "ACTIVE" &&
+          employeeDesignation.toUpperCase() === reportType.toUpperCase()
+        ) {
+
+          recipientEmail = employeeEmail;
+          bossName = employeeBoss;
+
+          break;
+        }
+      }
+
+
+      // =====================================================
+      // 11. SKIP IF RECIPIENT NOT FOUND
+      // =====================================================
+
+      if (!recipientEmail) {
+
+        Logger.log(
+          "Recipient not found or inactive: " +
+          managerName +
+          " | Report Type: " +
+          reportType
+        );
+
+        continue;
+      }
+
+
+      // =====================================================
+      // 12. FIND DGM BOSS FOR RSM / DRSM
+      // =====================================================
+
+      const isRSMLevel =
+        reportType.toUpperCase() === "RSM" ||
+        reportType.toUpperCase() === "DRSM";
+
+
+      if (isRSMLevel) {
+
+        for (let j = 1; j < employeeData.length; j++) {
+
+          const bossUser = String(
+            employeeData[j][userCol]
+          ).trim();
+
+          const bossStatus = String(
+            employeeData[j][statusCol]
+          ).trim();
+
+          const bossDesignation = String(
+            employeeData[j][designationCol]
+          ).trim();
+
+          const bossEmailId = String(
+            employeeData[j][emailCol]
+          ).trim();
+
+
+          if (
+            bossUser.toUpperCase() === bossName.toUpperCase() &&
+            bossStatus.toUpperCase() === "ACTIVE" &&
+            bossDesignation.toUpperCase() === "DGM" &&
+            bossEmailId !== ""
+          ) {
+
+            bossEmail = bossEmailId;
+
+            break;
+          }
+        }
+      }
+
+
+      // =====================================================
+      // 13. FIND ACTIVE HO EMAILS
+      // =====================================================
+
+      let hoEmails = [];
+
+      for (let h = 1; h < employeeData.length; h++) {
+
+        const hoStatus = String(
+          employeeData[h][statusCol]
+        ).trim();
+
+        const hoDesignation = String(
+          employeeData[h][designationCol]
+        ).trim();
+
+        const hoEmail = String(
+          employeeData[h][emailCol]
+        ).trim();
+
+
+        if (
+          hoStatus.toUpperCase() === "ACTIVE" &&
+          hoDesignation.toUpperCase() === "HO" &&
+          hoEmail !== ""
+        ) {
+
+          hoEmails.push(hoEmail);
+        }
+      }
+
+
+      // =====================================================
+      // 14. CREATE CC LIST
+      // =====================================================
+
+      let ccEmails = [];
+
+
+      // -----------------------------------------------------
+      // RSM / DRSM:
+      // DGM + Active HO
+      // -----------------------------------------------------
+
+      if (isRSMLevel) {
+
+        if (bossEmail !== "") {
+          ccEmails.push(bossEmail);
+        }
+
+        ccEmails = ccEmails.concat(hoEmails);
+      }
+
+
+      // -----------------------------------------------------
+      // ASM:
+      // NO CC
+      // -----------------------------------------------------
+
+      if (
+        reportType.toUpperCase() === "ASM"
+      ) {
+
+        ccEmails = [];
+      }
+
+
+      // Remove duplicate emails
+
+      ccEmails = [...new Set(ccEmails)];
+
+
+      // Remove recipient from CC if accidentally included
+
+      ccEmails = ccEmails.filter(function(email) {
+        return email.toLowerCase() !== recipientEmail.toLowerCase();
+      });
+
+
+      // =====================================================
+      // 15. PREPARE EMAIL BODY
+      // =====================================================
+
+      const plainBody = emailBody
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&amp;/gi, "&");
+
+
+      // =====================================================
+      // 16. SEND EMAIL
+      // =====================================================
+
+      const mailOptions = {
+        attachments: [file.getBlob()]
+      };
+
+
+      if (ccEmails.length > 0) {
+        mailOptions.cc = ccEmails.join(",");
+      }
+
+
+      GmailApp.sendEmail(
+        recipientEmail,
+        subject,
+        plainBody,
+        mailOptions
+      );
+
+
+      // =====================================================
+      // 17. LOG SUCCESS
+      // =====================================================
+
+      mailsSent++;
+      reportMailCount++;
+      filesFound++;
+
+
+      Logger.log(
+        "Email sent successfully | " +
+        "Report: " +
+        reportName +
+        " | " +
+        "Type: " +
+        reportType +
+        " | " +
+        "To: " +
+        recipientEmail +
+        " | " +
+        "CC: " +
+        ccEmails.join(",")
+      );
+
+    }
+
+
+    // =======================================================
+    // 18. UPDATE MAIL CONTROL STATUS
+    // =======================================================
+
+    if (reportMailCount > 0) {
+
+      controlSheet
+        .getRange(
+          c + 1,
+          mailStatusCol + 1
+        )
+        .setValue("Sent");
+
+
+      Logger.log(
+        "Report completed: " +
+        reportName +
+        " | Emails sent: " +
+        reportMailCount
+      );
+    }
+
+  }
+
+
+  // =========================================================
+  // 19. FINAL LOG
+  // =========================================================
+
+  Logger.log(
+    "Automation completed. Total emails sent: " +
+    mailsSent
+  );
+
+}
