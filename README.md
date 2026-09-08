@@ -38,5 +38,12 @@ automatically via Gmail.
 ## 🚀 Impact
 Eliminated a fully manual report-splitting and distribution process, 
 saving significant time each reporting cycle and removing human error 
+
+👨‍💻 Author
+Salman
+Aspiring Data Analyst | Excel, VBA & Automation
+
+⭐ If you found this project helpful, don't forget to Star this repository.
+
 from manager-wise report delivery.
 
